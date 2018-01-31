@@ -7,9 +7,19 @@
 
 DRAGONBONES_NAMESPACE_BEGIN
 
+#if (VERSION_MAJOR == 3)
+    #define MATRIX_TRANSFORM  Transform2D
+#else
+    #define MATRIX_TRANSFORM  Matrix32
+#endif
+
 void GDSlot::_updateZOrder()
 {
+#if (VERSION_MAJOR == 3)
+    _renderDisplay->set_z_index(_zOrder);
+#else
     _renderDisplay->set_z(_zOrder);
+#endif
 }
 
 void GDSlot::_updateVisible()
@@ -25,9 +35,12 @@ void GDSlot::_updateBlendMode()
 	if (_renderDisplay)
 	{
         CanvasItem::BlendMode __blend = CanvasItem::BLEND_MODE_MIX;
-        GDOwnerNode* __p_owner = _renderDisplay->p_owner;
+#if (VERSION_MAJOR == 3)
+#else
+         GDOwnerNode* __p_owner = _renderDisplay->p_owner;
         if(__p_owner)
             __blend = __p_owner->get_blend_mode();
+#endif
         if(!__blend)
         {
             switch (_blendMode)
@@ -77,7 +90,11 @@ void GDSlot::_updateColor()
    GDOwnerNode* __p_owner = _renderDisplay->p_owner;
    if(__p_owner)
    {
+#if (VERSION_MAJOR == 3)
+        __color.a *= __p_owner->modulate.a;
+#else
        __color.a *= __p_owner->modulate.a * __p_owner->get_opacity();
+#endif
        __color.r *= __p_owner->modulate.r;
        __color.g *= __p_owner->modulate.g;
        __color.b *= __p_owner->modulate.b;
@@ -133,6 +150,7 @@ void GDSlot::_updateFrame()
 {
         const auto meshData = _display == _meshDisplay ? _meshData : nullptr;
         auto currentTextureData = static_cast<GDTextureData*>(_textureData);
+        const auto hasFFD = !_deformVertices.empty()?-1.0:1.0;
 
         if (_displayIndex >= 0 && _display != nullptr && currentTextureData != nullptr)
         {
@@ -171,7 +189,7 @@ void GDSlot::_updateFrame()
                         __get_uv_pt(__uv, currentTextureData->rotated, u, v, region, atlas);
                         frameDisplay->verticesColor[iH] = Color(1,1,1,1);
                         frameDisplay->verticesUV[iH] = __uv;
-                        frameDisplay->verticesPos[iH] = Point2(floatArray[vertexOffset + i], floatArray[vertexOffset + i + 1]);
+                        frameDisplay->verticesPos[iH] = Point2(floatArray[vertexOffset + i], hasFFD * floatArray[vertexOffset + i + 1]);
                     }
 
                     // setup indicies
@@ -206,10 +224,10 @@ void GDSlot::_updateFrame()
                     frameDisplay->verticesColor[2] = Color(1,1,1,1);
                     frameDisplay->verticesColor[3] = Color(1,1,1,1);
 
-                    frameDisplay->verticesPos[3] = Vector2(-width, -height);
-                    frameDisplay->verticesPos[2] = Vector2(width, -height);
-                    frameDisplay->verticesPos[1] = Vector2(width, height);
-                    frameDisplay->verticesPos[0] = Vector2(-width, height);
+                    frameDisplay->verticesPos[3] = Vector2(-width, hasFFD * -height);
+                    frameDisplay->verticesPos[2] = Vector2(width, hasFFD * -height);
+                    frameDisplay->verticesPos[1] = Vector2(width, hasFFD * height);
+                    frameDisplay->verticesPos[0] = Vector2(-width, hasFFD * height);
 
                     __get_uv_pt(frameDisplay->verticesUV[0], currentTextureData->rotated, 0, 0, region, atlas);
                     __get_uv_pt(frameDisplay->verticesUV[1], currentTextureData->rotated, 1.f, 0, region, atlas);
@@ -322,7 +340,7 @@ void GDSlot::_updateMesh()
 
 void GDSlot::_identityTransform()
 {
-    auto matrix = Matrix32();
+    auto matrix = MATRIX_TRANSFORM();
     matrix.scale(Size2(_textureScale, _textureScale));
     _renderDisplay->set_transform(matrix);
     _renderDisplay->update();
@@ -349,7 +367,7 @@ void GDSlot::_updateTransform()
      pos.y = globalTransformMatrix.ty - (globalTransformMatrix.b * anchorPoint.x - globalTransformMatrix.d * anchorPoint.y);
    }
 
-   auto matrix = Matrix32(
+   auto matrix = MATRIX_TRANSFORM(
                     globalTransformMatrix.a * _textureScale,
                     globalTransformMatrix.b * _textureScale,
                     -globalTransformMatrix.c * _textureScale,
